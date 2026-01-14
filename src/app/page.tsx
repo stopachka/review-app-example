@@ -7,299 +7,341 @@ import { useState } from "react";
 
 type Review = InstaQLEntity<AppSchema, "reviews">;
 
-const SECTIONS = [
-  { id: "growing-instant", label: "Growing Instant", color: "from-violet-500 to-purple-600" },
-  { id: "planning-wedding", label: "Planning My Wedding", color: "from-rose-400 to-pink-500" },
-  { id: "best-shape", label: "Getting Into the Best Shape of My Life", color: "from-emerald-400 to-teal-500" },
-] as const;
+const SECTIONS = {
+  "growing-instant": { label: "Growing Instant", emoji: "🌱" },
+  "planning-wedding": { label: "Planning My Wedding", emoji: "💍" },
+  "best-shape": { label: "Getting Into the Best Shape of My Life", emoji: "💪" },
+} as const;
 
-type SectionId = (typeof SECTIONS)[number]["id"];
+type SectionId = keyof typeof SECTIONS;
 
 function App() {
   const { isLoading, error, data } = db.useQuery({
     reviews: { $: { order: { createdAt: "desc" } } },
   });
-  const [activeSection, setActiveSection] = useState<SectionId>("growing-instant");
-  const [editingReview, setEditingReview] = useState<Review | null>(null);
+  const [view, setView] = useState<"read" | "write">("read");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
-        <div className="animate-pulse text-gray-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-400">Loading...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
-        <div className="text-red-400 p-4">Error: {error.message}</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-400">Error: {error.message}</div>
       </div>
     );
   }
 
   const { reviews } = data;
-  const currentSection = SECTIONS.find((s) => s.id === activeSection)!;
-  const sectionReviews = reviews.filter((r) => r.section === activeSection);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* Header */}
-      <header className="border-b border-gray-700/50 backdrop-blur-sm bg-gray-900/50 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-white tracking-tight">My Reviews</h1>
-          <p className="text-gray-400 mt-1">Track progress across life's important areas</p>
+    <div className="min-h-screen bg-[#fafafa]">
+      {/* Minimal Header */}
+      <header className="sticky top-0 z-20 bg-[#fafafa]/80 backdrop-blur-sm border-b border-gray-200/50">
+        <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
+          <h1 className="text-lg font-medium text-gray-900">Reviews</h1>
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setView("read")}
+              className={`px-3 py-1.5 text-sm rounded-md transition-all ${
+                view === "read"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Read
+            </button>
+            <button
+              onClick={() => setView("write")}
+              className={`px-3 py-1.5 text-sm rounded-md transition-all ${
+                view === "write"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Write
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Section Tabs */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex flex-wrap gap-3">
-          {SECTIONS.map((section) => (
-            <button
-              key={section.id}
-              onClick={() => setActiveSection(section.id)}
-              className={`px-5 py-2.5 rounded-full font-medium transition-all duration-200 ${
-                activeSection === section.id
-                  ? `bg-gradient-to-r ${section.color} text-white shadow-lg shadow-${section.color.split("-")[1]}-500/25`
-                  : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
-              }`}
-            >
-              {section.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 pb-12">
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Add Review Card */}
-          <div className="lg:col-span-1">
-            <AddReviewCard section={activeSection} sectionColor={currentSection.color} />
-          </div>
-
-          {/* Reviews List */}
-          <div className="lg:col-span-2">
-            <div className="bg-gray-800/50 rounded-2xl border border-gray-700/50 overflow-hidden">
-              <div className={`bg-gradient-to-r ${currentSection.color} px-6 py-4`}>
-                <h2 className="text-xl font-semibold text-white">
-                  {currentSection.label}
-                </h2>
-                <p className="text-white/80 text-sm mt-1">
-                  {sectionReviews.length} review{sectionReviews.length !== 1 ? "s" : ""}
-                </p>
-              </div>
-
-              {sectionReviews.length === 0 ? (
-                <div className="p-12 text-center">
-                  <div className="text-gray-500 text-lg">No reviews yet</div>
-                  <p className="text-gray-600 mt-2 text-sm">
-                    Add your first review for this section
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-700/50">
-                  {sectionReviews.map((review) => (
-                    <ReviewItem
-                      key={review.id}
-                      review={review}
-                      isEditing={editingReview?.id === review.id}
-                      onEdit={() => setEditingReview(review)}
-                      onCancelEdit={() => setEditingReview(null)}
-                      onSaveEdit={() => setEditingReview(null)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </main>
+      {view === "read" ? (
+        <ReadView
+          reviews={reviews}
+          editingId={editingId}
+          setEditingId={setEditingId}
+        />
+      ) : (
+        <WriteView onComplete={() => setView("read")} />
+      )}
     </div>
   );
 }
 
-function AddReviewCard({
-  section,
-  sectionColor,
+function ReadView({
+  reviews,
+  editingId,
+  setEditingId,
 }: {
-  section: SectionId;
-  sectionColor: string;
+  reviews: Review[];
+  editingId: string | null;
+  setEditingId: (id: string | null) => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
-
-    db.transact(
-      db.tx.reviews[id()].update({
-        title: title.trim(),
-        content: content.trim(),
-        section,
-        createdAt: Date.now(),
-      })
+  if (reviews.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-24 text-center">
+        <p className="text-gray-400 text-lg">No reviews yet</p>
+        <p className="text-gray-300 mt-2">Switch to Write to add your first review</p>
+      </div>
     );
+  }
 
-    setTitle("");
-    setContent("");
-  };
+  // Group reviews by section
+  const groupedBySection = reviews.reduce(
+    (acc, review) => {
+      const section = review.section as SectionId;
+      if (!acc[section]) acc[section] = [];
+      acc[section].push(review);
+      return acc;
+    },
+    {} as Record<SectionId, Review[]>
+  );
 
   return (
-    <div className="bg-gray-800/50 rounded-2xl border border-gray-700/50 overflow-hidden sticky top-24">
-      <div className={`bg-gradient-to-r ${sectionColor} px-6 py-4`}>
-        <h3 className="text-lg font-semibold text-white">Add Review</h3>
+    <main className="max-w-2xl mx-auto px-6 py-8">
+      <div className="space-y-16">
+        {(Object.keys(SECTIONS) as SectionId[]).map((sectionId) => {
+          const sectionReviews = groupedBySection[sectionId];
+          if (!sectionReviews?.length) return null;
+
+          return (
+            <section key={sectionId}>
+              <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+                <span>{SECTIONS[sectionId].emoji}</span>
+                {SECTIONS[sectionId].label}
+              </h2>
+              <div className="space-y-8">
+                {sectionReviews.map((review) => (
+                  <ReviewEntry
+                    key={review.id}
+                    review={review}
+                    isEditing={editingId === review.id}
+                    onEdit={() => setEditingId(review.id)}
+                    onClose={() => setEditingId(null)}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
-      <form onSubmit={handleSubmit} className="p-6 space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Title
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="What are you reviewing?"
-            className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Review
-          </label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Share your thoughts, progress, or reflections..."
-            rows={4}
-            className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all resize-none"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={!title.trim() || !content.trim()}
-          className={`w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
-            title.trim() && content.trim()
-              ? `bg-gradient-to-r ${sectionColor} text-white hover:opacity-90 shadow-lg`
-              : "bg-gray-700 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          Add Review
-        </button>
-      </form>
-    </div>
+    </main>
   );
 }
 
-function ReviewItem({
+function ReviewEntry({
   review,
   isEditing,
   onEdit,
-  onCancelEdit,
-  onSaveEdit,
+  onClose,
 }: {
   review: Review;
   isEditing: boolean;
   onEdit: () => void;
-  onCancelEdit: () => void;
-  onSaveEdit: () => void;
+  onClose: () => void;
 }) {
   const [editTitle, setEditTitle] = useState(review.title);
   const [editContent, setEditContent] = useState(review.content);
 
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
   const handleSave = () => {
     if (!editTitle.trim() || !editContent.trim()) return;
-
     db.transact(
       db.tx.reviews[review.id].update({
         title: editTitle.trim(),
         content: editContent.trim(),
       })
     );
-    onSaveEdit();
+    onClose();
   };
 
   const handleDelete = () => {
     db.transact(db.tx.reviews[review.id].delete());
-  };
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+    onClose();
   };
 
   if (isEditing) {
     return (
-      <div className="p-6 bg-gray-900/30">
-        <div className="space-y-4">
-          <input
-            type="text"
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <textarea
-            value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            rows={4}
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-          />
-          <div className="flex gap-3">
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition-colors"
-            >
-              Save
-            </button>
-            <button
-              onClick={onCancelEdit}
-              className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
+      <article className="group">
+        <input
+          type="text"
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          className="w-full text-xl font-medium text-gray-900 bg-transparent border-b border-gray-200 pb-2 mb-4 focus:outline-none focus:border-gray-400"
+          autoFocus
+        />
+        <textarea
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          rows={6}
+          className="w-full text-gray-600 leading-relaxed bg-transparent border border-gray-200 rounded-lg p-3 focus:outline-none focus:border-gray-400 resize-none"
+        />
+        <div className="flex gap-3 mt-4">
+          <button
+            onClick={handleSave}
+            className="px-3 py-1.5 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"
+          >
+            Save
+          </button>
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            className="px-3 py-1.5 text-sm text-red-500 hover:text-red-600 ml-auto"
+          >
+            Delete
+          </button>
         </div>
-      </div>
+      </article>
     );
   }
 
   return (
-    <div className="p-6 hover:bg-gray-800/30 transition-colors group">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <h4 className="text-lg font-medium text-white truncate">{review.title}</h4>
-          <p className="text-gray-400 mt-2 whitespace-pre-wrap">{review.content}</p>
-          <p className="text-gray-500 text-sm mt-3">{formatDate(review.createdAt)}</p>
+    <article className="group cursor-pointer" onClick={onEdit}>
+      <time className="text-xs text-gray-300 block mb-2">
+        {formatDate(review.createdAt)}
+      </time>
+      <h3 className="text-xl font-medium text-gray-900 mb-3 group-hover:text-gray-600 transition-colors">
+        {review.title}
+      </h3>
+      <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+        {review.content}
+      </p>
+    </article>
+  );
+}
+
+function WriteView({ onComplete }: { onComplete: () => void }) {
+  const [step, setStep] = useState<"section" | "content">("section");
+  const [selectedSection, setSelectedSection] = useState<SectionId | null>(null);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+
+  const handleSubmit = () => {
+    if (!selectedSection || !title.trim() || !content.trim()) return;
+
+    db.transact(
+      db.tx.reviews[id()].update({
+        title: title.trim(),
+        content: content.trim(),
+        section: selectedSection,
+        createdAt: Date.now(),
+      })
+    );
+
+    setTitle("");
+    setContent("");
+    setSelectedSection(null);
+    setStep("section");
+    onComplete();
+  };
+
+  if (step === "section") {
+    return (
+      <main className="max-w-2xl mx-auto px-6 py-16">
+        <h2 className="text-2xl font-medium text-gray-900 mb-2">New Review</h2>
+        <p className="text-gray-400 mb-10">What area of your life is this about?</p>
+
+        <div className="space-y-3">
+          {(Object.keys(SECTIONS) as SectionId[]).map((sectionId) => (
+            <button
+              key={sectionId}
+              onClick={() => {
+                setSelectedSection(sectionId);
+                setStep("content");
+              }}
+              className="w-full text-left px-5 py-4 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all group"
+            >
+              <span className="text-xl mr-3">{SECTIONS[sectionId].emoji}</span>
+              <span className="text-gray-900 group-hover:text-gray-600">
+                {SECTIONS[sectionId].label}
+              </span>
+            </button>
+          ))}
         </div>
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      </main>
+    );
+  }
+
+  return (
+    <main className="max-w-2xl mx-auto px-6 py-16">
+      <button
+        onClick={() => setStep("section")}
+        className="text-sm text-gray-400 hover:text-gray-600 mb-6 flex items-center gap-1"
+      >
+        ← Back
+      </button>
+
+      <div className="flex items-center gap-2 mb-8">
+        <span className="text-xl">{SECTIONS[selectedSection!].emoji}</span>
+        <span className="text-sm text-gray-400">{SECTIONS[selectedSection!].label}</span>
+      </div>
+
+      <div className="space-y-6">
+        <div>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Title"
+            className="w-full text-2xl font-medium text-gray-900 bg-transparent placeholder-gray-300 focus:outline-none"
+            autoFocus
+          />
+        </div>
+
+        <div>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Write your thoughts..."
+            rows={12}
+            className="w-full text-gray-600 leading-relaxed bg-transparent placeholder-gray-300 focus:outline-none resize-none"
+          />
+        </div>
+
+        <div className="pt-4 border-t border-gray-100">
           <button
-            onClick={onEdit}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-            title="Edit"
+            onClick={handleSubmit}
+            disabled={!title.trim() || !content.trim()}
+            className={`px-5 py-2.5 rounded-lg font-medium transition-all ${
+              title.trim() && content.trim()
+                ? "bg-gray-900 text-white hover:bg-gray-800"
+                : "bg-gray-100 text-gray-300 cursor-not-allowed"
+            }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-          <button
-            onClick={handleDelete}
-            className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors"
-            title="Delete"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            Save Review
           </button>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 
