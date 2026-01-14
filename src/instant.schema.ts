@@ -13,10 +13,11 @@ const _schema = i.schema({
       imageURL: i.string().optional(),
       type: i.string().optional(),
     }),
-    todos: i.entity({
-      text: i.string(),
-      done: i.boolean(),
-      createdAt: i.number(),
+    reviews: i.entity({
+      title: i.string(),
+      content: i.string(),
+      section: i.string().indexed(),
+      createdAt: i.number().indexed(),
     }),
   },
   links: {
@@ -35,7 +36,7 @@ const _schema = i.schema({
     },
   },
   rooms: {
-    todos: {
+    reviews: {
       presence: i.entity({}),
     },
   },

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Create Instant App',
-  description: 'Instant DB Starter App',
+  title: 'My Reviews',
+  description: 'Track progress across life\'s important areas',
 };
 
 export default function RootLayout({
